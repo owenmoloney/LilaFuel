@@ -12,15 +12,8 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
 jobs:
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -32,8 +25,14 @@ jobs:
       - name: Inject Discord Webhook
         run: |
           # Create config.js with webhook from GitHub Secrets
-          echo "const DISCORD_WEBHOOK = \"${{ secrets.DISCORD_WEBHOOK }}\";" > config.js
-          echo "window.DISCORD_WEBHOOK = DISCORD_WEBHOOK;" >> config.js
+          if [ -z "${{ secrets.DISCORD_WEBHOOK }}" ]; then
+            echo "Warning: DISCORD_WEBHOOK secret not set. Creating placeholder."
+            echo "const DISCORD_WEBHOOK = \"\";" > config.js
+            echo "window.DISCORD_WEBHOOK = DISCORD_WEBHOOK;" >> config.js
+          else
+            echo "const DISCORD_WEBHOOK = \"${{ secrets.DISCORD_WEBHOOK }}\";" > config.js
+            echo "window.DISCORD_WEBHOOK = DISCORD_WEBHOOK;" >> config.js
+          fi
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

@@ -25,27 +25,8 @@
 
     let alreadyTriggered = false;
 
-    // Try to load webhook URL from config.js (for local development)
-    // For GitHub Pages, this will be injected by GitHub Actions
-    let DISCORD_WEBHOOK = window.DISCORD_WEBHOOK || '';
-
-    // Load config.js if it exists (for local development)
-    const configScript = document.createElement('script');
-    configScript.src = 'config.js';
-    configScript.onerror = function() {
-      // config.js doesn't exist (expected on GitHub Pages)
-      // Will use window.DISCORD_WEBHOOK if set by build process
-      if (!DISCORD_WEBHOOK) {
-        console.warn('⚠️ Discord webhook not configured. For local dev, create config.js from config.js.example');
-      }
-    };
-    configScript.onload = function() {
-      // If config.js loaded, use its value
-      if (typeof window.DISCORD_WEBHOOK !== 'undefined') {
-        DISCORD_WEBHOOK = window.DISCORD_WEBHOOK;
-      }
-    };
-    document.head.appendChild(configScript);
+    // 🔥 Paste your Discord webhook URL here
+    const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1467992057846169727/WrnsyXwATJyDxU2_7dWoJPsFaNlO7iGnlHMAipjV70JxXNvLEyxzziwMucZsQxLMO8l7";
 
     slider.addEventListener("input", async () => {
       const val = slider.value;
@@ -55,9 +36,9 @@
         alreadyTriggered = true;
 
         // Check if webhook is configured
-        if (!DISCORD_WEBHOOK || DISCORD_WEBHOOK === '' || DISCORD_WEBHOOK === 'YOUR_DISCORD_WEBHOOK_URL_HERE') {
-          alert("⚠️ Error: Discord webhook not configured!\n\nFor local development: Create config.js from config.js.example\n\nFor GitHub Pages: Webhook should be set via GitHub Actions secrets.");
-          alreadyTriggered = false; // Reset so user can try again after fixing
+        if (!DISCORD_WEBHOOK || DISCORD_WEBHOOK === '') {
+          alert("⚠️ Error: Discord webhook not configured!");
+          alreadyTriggered = false;
           return;
         }
 
@@ -76,7 +57,7 @@
             throw new Error(`HTTP ${response.status}`);
           }
         } catch (error) {
-          alert(`❌ Failed to send alert: ${error.message}\n\nCheck your webhook URL in config.js`);
+          alert(`❌ Failed to send alert: ${error.message}`);
           alreadyTriggered = false; // Reset on error
         }
       }

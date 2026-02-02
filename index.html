@@ -19,15 +19,19 @@
 
   <p>Value: <span id="value">50</span></p>
 
+  <!-- Load webhook URL from external config file (gitignored) -->
+  <script src="config.js"></script>
+
   <script>
     const slider = document.getElementById("slider");
     const valueDisplay = document.getElementById("value");
 
     let alreadyTriggered = false;
 
-    // 🔥 Paste your Discord webhook URL here
-    const DISCORD_WEBHOOK =
-      "https://discord.com/api/webhooks/1467983535359922360/6ilNvLM-iVnodYRPlavpVtR4PTqNWmwXRX_8q0daXdrwI-1rIQp92Jah1bCm9k5r21bL";
+    // Check if config.js was loaded properly
+    if (typeof DISCORD_WEBHOOK === 'undefined' || DISCORD_WEBHOOK === 'YOUR_DISCORD_WEBHOOK_URL_HERE') {
+      console.error('⚠️ Discord webhook not configured! Please create config.js from config.js.example');
+    }
 
     slider.addEventListener("input", async () => {
       const val = slider.value;
@@ -36,15 +40,31 @@
       if (val < 20 && !alreadyTriggered) {
         alreadyTriggered = true;
 
-        await fetch(DISCORD_WEBHOOK, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            content: "⚠️ Lila’s caffeine level dropped below 20!",
-          }),
-        });
+        // Check if webhook is configured
+        if (typeof DISCORD_WEBHOOK === 'undefined' || DISCORD_WEBHOOK === 'YOUR_DISCORD_WEBHOOK_URL_HERE') {
+          alert("⚠️ Error: Discord webhook not configured!\n\nPlease create config.js from config.js.example and add your webhook URL.");
+          alreadyTriggered = false; // Reset so user can try again after fixing
+          return;
+        }
 
-        alert("Discord alert sent!");
+        try {
+          const response = await fetch(DISCORD_WEBHOOK, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              content: "⚠️ Lila's caffeine level dropped below 20!",
+            }),
+          });
+
+          if (response.ok) {
+            alert("✅ Discord alert sent!");
+          } else {
+            throw new Error(`HTTP ${response.status}`);
+          }
+        } catch (error) {
+          alert(`❌ Failed to send alert: ${error.message}\n\nCheck your webhook URL in config.js`);
+          alreadyTriggered = false; // Reset on error
+        }
       }
 
       if (val >= 20) {

@@ -1,0 +1,4 @@
+// Copy this file to config.js and add your Discord webhook URL
+// config.js is gitignored and will not be committed to the repository
+
+const DISCORD_WEBHOOK = "YOUR_DISCORD_WEBHOOK_URL_HERE";

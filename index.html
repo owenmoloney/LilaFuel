@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lila's Iced Coffee Monitor ☕</title>
+  <title>Lila's Caffeination Levels ☕</title>
   <style>
     * {
       margin: 0;
@@ -310,8 +310,8 @@
 </head>
 <body>
   <div class="container">
-    <h1>Lila's Iced Coffee ☕</h1>
-    <p class="subtitle">Lower the slider to decrease the coffee level</p>
+    <h1>Lila's Caffeination Levels ☕</h1>
+    <p class="subtitle">Lower the slider to decrease caffeination levels</p>
 
     <div class="coffee-cup-container">
       <div class="coffee-cup">
@@ -328,7 +328,7 @@
     </div>
 
     <div class="slider-container">
-      <div class="slider-label">Coffee Level</div>
+      <div class="slider-label">Caffeination Level</div>
       <input
         type="range"
         min="0"
@@ -411,7 +411,7 @@
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              content: "⚠️ Lila's iced coffee level dropped below 20%! Time for a refill! ☕",
+              content: "⚠️ Lila's caffeination level dropped below 20%! Time for a refill! ☕",
             }),
           });
 

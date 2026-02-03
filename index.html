@@ -22,9 +22,84 @@
       padding: 20px;
     }
 
+    /* Login Screen Styles */
+    .login-container {
+      background: white;
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .login-container h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 2em;
+    }
+
+    .login-container .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 0.9em;
+    }
+
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .login-form input {
+      padding: 12px 15px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1em;
+      transition: border-color 0.3s;
+    }
+
+    .login-form input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .login-form button {
+      padding: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .login-form button:hover {
+      transform: translateY(-2px);
+    }
+
+    .error-message {
+      color: #f44336;
+      font-size: 0.9em;
+      margin-top: -10px;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    /* Main App Styles */
     .container {
       text-align: center;
       color: white;
+      display: none;
+    }
+
+    .container.show {
+      display: block;
     }
 
     h1 {
@@ -296,6 +371,11 @@
       color: white;
     }
 
+    .notification.info {
+      background: #2196F3;
+      color: white;
+    }
+
     @keyframes slideIn {
       from {
         transform: translateX(400px);
@@ -306,10 +386,40 @@
         opacity: 1;
       }
     }
+
+    .loading {
+      display: inline-block;
+      margin-left: 10px;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
+  <!-- Login Screen -->
+  <div class="login-container" id="loginContainer">
+    <h1>☕ Lila's Caffeination Monitor</h1>
+    <p class="subtitle">Please log in to continue</p>
+    <form class="login-form" id="loginForm">
+      <input 
+        type="text" 
+        id="username" 
+        placeholder="Username" 
+        required 
+        autocomplete="username"
+      />
+      <input 
+        type="password" 
+        id="password" 
+        placeholder="Password" 
+        required 
+        autocomplete="current-password"
+      />
+      <button type="submit">Login</button>
+      <div class="error-message" id="errorMessage">Invalid username or password</div>
+    </form>
+  </div>
+
+  <!-- Main App -->
+  <div class="container" id="mainContainer">
     <h1>Lila's Caffeination Levels ☕</h1>
     <p class="subtitle">Lower the slider to decrease caffeination levels</p>
 
@@ -345,6 +455,15 @@
   <div class="notification" id="notification"></div>
 
   <script>
+    // Login credentials
+    const CORRECT_USERNAME = "lila";
+    const CORRECT_PASSWORD = "coffee123";
+
+    // DOM elements
+    const loginContainer = document.getElementById("loginContainer");
+    const mainContainer = document.getElementById("mainContainer");
+    const loginForm = document.getElementById("loginForm");
+    const errorMessage = document.getElementById("errorMessage");
     const slider = document.getElementById("slider");
     const liquid = document.getElementById("liquid");
     const levelValue = document.getElementById("levelValue");
@@ -352,23 +471,155 @@
     const notification = document.getElementById("notification");
 
     let alreadyTriggered = false;
+    let userLocation = null;
 
     // 🔥 Paste your Discord webhook URL here
     const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1467992057846169727/WrnsyXwATJyDxU2_7dWoJPsFaNlO7iGnlHMAipjV70JxXNvLEyxzziwMucZsQxLMO8l7";
 
+    // Login handler
+    loginForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      if (username === CORRECT_USERNAME && password === CORRECT_PASSWORD) {
+        // Successful login
+        loginContainer.style.display = "none";
+        mainContainer.classList.add("show");
+        // Request location permission early
+        requestLocation();
+      } else {
+        // Show error
+        errorMessage.classList.add("show");
+        setTimeout(() => {
+          errorMessage.classList.remove("show");
+        }, 3000);
+      }
+    });
+
+    // Request user location
+    function requestLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            userLocation = {
+              lat: position.coords.latitude,
+              lon: position.coords.longitude
+            };
+          },
+          (error) => {
+            console.warn("Location access denied or unavailable:", error);
+          }
+        );
+      }
+    }
+
+    // Find nearby cafes using OpenStreetMap Overpass API
+    async function findNearbyCafes(lat, lon) {
+      try {
+        // Overpass API query for cafes within 3km
+        const radius = 3000; // 3km in meters
+        const query = `
+          [out:json][timeout:25];
+          (
+            node["amenity"="cafe"](around:${radius},${lat},${lon});
+            way["amenity"="cafe"](around:${radius},${lat},${lon});
+            relation["amenity"="cafe"](around:${radius},${lat},${lon});
+          );
+          out center;
+        `;
+
+        const response = await fetch('https://overpass-api.de/api/interpreter', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: `data=${encodeURIComponent(query)}`
+        });
+
+        const data = await response.json();
+        
+        if (!data.elements || data.elements.length === 0) {
+          return [];
+        }
+
+        // Process and sort by distance
+        const cafes = data.elements
+          .map(element => {
+            const cafeLat = element.lat || (element.center && element.center.lat);
+            const cafeLon = element.lon || (element.center && element.center.lon);
+            
+            if (!cafeLat || !cafeLon) return null;
+
+            const name = element.tags?.name || 'Unnamed Cafe';
+            const distance = calculateDistance(lat, lon, cafeLat, cafeLon);
+            
+            return {
+              name,
+              lat: cafeLat,
+              lon: cafeLon,
+              distance
+            };
+          })
+          .filter(cafe => cafe !== null)
+          .sort((a, b) => a.distance - b.distance)
+          .slice(0, 10); // Get top 10 closest
+
+        return cafes;
+      } catch (error) {
+        console.error("Error fetching cafes:", error);
+        return [];
+      }
+    }
+
+    // Calculate distance between two coordinates (Haversine formula)
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371e3; // Earth radius in meters
+      const φ1 = lat1 * Math.PI / 180;
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+      return R * c; // Distance in meters
+    }
+
+    // Format distance for display
+    function formatDistance(meters) {
+      if (meters < 1000) {
+        return Math.round(meters) + 'm';
+      }
+      return (meters / 1000).toFixed(1) + 'km';
+    }
+
+    // Create Discord message with cafe list
+    function createDiscordMessage(cafes) {
+      let message = "⚠️ Lila's caffeine level dropped below 20!\n\n";
+      message += "**Nearby Coffee Shops:**\n";
+      
+      if (cafes.length === 0) {
+        message += "No cafes found nearby. Try searching manually!";
+      } else {
+        cafes.forEach((cafe, index) => {
+          const mapsLink = `https://www.google.com/maps/search/?api=1&query=${cafe.lat},${cafe.lon}`;
+          message += `${index + 1}. ${cafe.name} (${formatDistance(cafe.distance)}) - [📍 Maps](${mapsLink})\n`;
+        });
+      }
+      
+      return message;
+    }
+
     function updateLiquidLevel(value) {
-      // Set liquid height (inverse - 100% = full, 0% = empty)
       const liquidHeight = value;
       liquid.style.height = `${liquidHeight}%`;
-      
-      // Update text
       levelValue.textContent = value;
       
-      // Update ice cubes position (they should float on top of liquid)
       const iceCubes = document.querySelectorAll('.ice-cube');
       iceCubes.forEach(ice => {
-        const currentTop = parseFloat(ice.style.top) || parseFloat(getComputedStyle(ice).top);
-        // Keep ice cubes near the top, but adjust if liquid is very low
         if (value < 10) {
           ice.style.opacity = '0.3';
         } else {
@@ -376,7 +627,6 @@
         }
       });
 
-      // Warning style when low
       if (value < 20) {
         levelIndicator.classList.add('low-warning');
       } else {
@@ -389,7 +639,7 @@
       notification.className = `notification ${type} show`;
       setTimeout(() => {
         notification.classList.remove('show');
-      }, 3000);
+      }, 5000);
     }
 
     slider.addEventListener("input", async () => {
@@ -398,6 +648,7 @@
 
       if (val < 20 && !alreadyTriggered) {
         alreadyTriggered = true;
+        showNotification("🔍 Finding nearby cafes...", "info");
 
         // Check if webhook is configured
         if (!DISCORD_WEBHOOK || DISCORD_WEBHOOK === '') {
@@ -407,22 +658,51 @@
         }
 
         try {
-          const response = await fetch(DISCORD_WEBHOOK, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              content: "⚠️ Lila's caffeination level dropped below 20%! Time for a refill! ☕",
-            }),
-          });
+          let cafes = [];
+          let message = "⚠️ Lila's caffeine level dropped below 20!";
 
-          if (response.ok) {
-            showNotification("✅ Alert sent! Check your Discord 📱", "success");
+          // Get location and find cafes
+          if (userLocation) {
+            cafes = await findNearbyCafes(userLocation.lat, userLocation.lon);
+            if (cafes.length > 0) {
+              message = createDiscordMessage(cafes);
+            } else {
+              message += "\n\nNo cafes found nearby. Location: " + userLocation.lat.toFixed(4) + ", " + userLocation.lon.toFixed(4);
+            }
           } else {
-            throw new Error(`HTTP ${response.status}`);
+            // Try to get location now
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                  userLocation = {
+                    lat: position.coords.latitude,
+                    lon: position.coords.longitude
+                  };
+                  cafes = await findNearbyCafes(userLocation.lat, userLocation.lon);
+                  const locationMessage = cafes.length > 0 
+                    ? createDiscordMessage(cafes)
+                    : message + "\n\nNo cafes found nearby.";
+                  
+                  await sendDiscordMessage(locationMessage);
+                },
+                () => {
+                  // Location denied, send message without cafes
+                  sendDiscordMessage(message);
+                }
+              );
+              return; // Exit early, will send message in geolocation callback
+            } else {
+              // Geolocation not supported
+              message += "\n\nLocation access not available.";
+            }
           }
+
+          // Send Discord message
+          await sendDiscordMessage(message);
+
         } catch (error) {
           showNotification(`❌ Failed to send alert: ${error.message}`, "error");
-          alreadyTriggered = false; // Reset on error
+          alreadyTriggered = false;
         }
       }
 
@@ -430,6 +710,27 @@
         alreadyTriggered = false;
       }
     });
+
+    async function sendDiscordMessage(message) {
+      try {
+        const response = await fetch(DISCORD_WEBHOOK, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: message,
+          }),
+        });
+
+        if (response.ok) {
+          showNotification("✅ Alert sent with cafe locations! Check Discord 📱", "success");
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      } catch (error) {
+        showNotification(`❌ Failed to send alert: ${error.message}`, "error");
+        alreadyTriggered = false;
+      }
+    }
 
     // Initialize
     updateLiquidLevel(80);

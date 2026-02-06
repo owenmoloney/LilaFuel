@@ -540,11 +540,21 @@
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-  <script src="firebase.config.js"></script>
+  <script>
+    window.firebaseConfig = {
+      apiKey: "AIzaSyAEbdx9lndoKV-emJn9DVxm-JwPHWAdEfc",
+      authDomain: "lilafuel.firebaseapp.com",
+      projectId: "lilafuel",
+      storageBucket: "lilafuel.firebasestorage.app",
+      messagingSenderId: "966551842181",
+      appId: "1:966551842181:web:6013085fa9a323ce9168ec",
+      measurementId: "G-TEV9VWJJD8"
+    };
+  </script>
   <script>
     // Firebase
     let db = null;
-    if (typeof firebase !== "undefined" && window.firebaseConfig && window.firebaseConfig.apiKey !== "YOUR_API_KEY") {
+    if (typeof firebase !== "undefined" && window.firebaseConfig) {
       try {
         firebase.initializeApp(window.firebaseConfig);
         db = firebase.firestore();

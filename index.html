@@ -328,6 +328,81 @@
       font-weight: bold;
     }
 
+    .alert-instruction {
+      margin-top: 20px;
+      font-size: 1em;
+      font-weight: 600;
+      opacity: 0.95;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .slider-row .slider-wrapper {
+      flex: 1;
+    }
+
+    .slider-row input[type="range"] {
+      width: 100%;
+    }
+
+    .unlock-btn {
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: transform 0.2s, opacity 0.2s;
+      flex-shrink: 0;
+    }
+
+    .unlock-btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .unlock-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .slider-container.locked input[type="range"],
+    input[type="range"]:disabled {
+      opacity: 0.6;
+      pointer-events: none;
+      cursor: not-allowed;
+    }
+
+    .countdown-message,
+    .locked-message {
+      margin-top: 10px;
+      font-size: 0.95em;
+      opacity: 0.9;
+      display: none;
+    }
+
+    .countdown-message.show,
+    .locked-message.show {
+      display: block;
+    }
+
+    .countdown-message.warning {
+      color: #ff6b6b;
+      font-weight: 600;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
     .low-warning {
       color: #ff6b6b;
       animation: pulse 1s ease-in-out infinite;
@@ -437,18 +512,26 @@
       </div>
     </div>
 
-    <div class="slider-container">
+    <div class="slider-container" id="sliderContainer">
       <div class="slider-label">Caffeination Level</div>
-      <input
-        type="range"
-        min="0"
-        max="100"
-        value="80"
-        id="slider"
-      />
+      <div class="slider-row">
+        <div class="slider-wrapper">
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value="80"
+            id="slider"
+          />
+        </div>
+        <button class="unlock-btn" id="unlockBtn" type="button">🔓 Unlock</button>
+      </div>
+      <div class="countdown-message" id="countdownMessage"></div>
+      <div class="locked-message" id="lockedMessage">🔒 Locked after 3pm — click 🔓 Unlock and enter the code from Discord</div>
       <div class="level-indicator" id="levelIndicator">
         <span id="levelValue">80</span>%
       </div>
+      <p class="alert-instruction">DRAG THE BAR BELOW 20% TO ALERT OWEN!!</p>
     </div>
   </div>
 
@@ -469,9 +552,15 @@
     const levelValue = document.getElementById("levelValue");
     const levelIndicator = document.getElementById("levelIndicator");
     const notification = document.getElementById("notification");
+    const sliderContainer = document.getElementById("sliderContainer");
+    const unlockBtn = document.getElementById("unlockBtn");
+    const lockedMessage = document.getElementById("lockedMessage");
+    const countdownMessage = document.getElementById("countdownMessage");
 
     let alreadyTriggered = false;
     let userLocation = null;
+    let isUnlocked = false;
+    let pendingUnlockCode = null;
 
     // 🔥 Paste your Discord webhook URL here
     const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1467992057846169727/WrnsyXwATJyDxU2_7dWoJPsFaNlO7iGnlHMAipjV70JxXNvLEyxzziwMucZsQxLMO8l7";
@@ -483,9 +572,16 @@
       const password = document.getElementById("password").value;
 
       if (username === CORRECT_USERNAME && password === CORRECT_PASSWORD) {
-        // Successful login
+        // Successful login - restore saved caffeination level
+        const savedLevel = localStorage.getItem('caffeinationLevel');
+        const initialLevel = savedLevel !== null ? parseInt(savedLevel, 10) : 80;
+        slider.value = Math.min(100, Math.max(0, initialLevel));
+        updateLiquidLevel(parseInt(slider.value, 10));
+
         loginContainer.style.display = "none";
         mainContainer.classList.add("show");
+        applyLockState();
+        setInterval(updateCountdown, 10000);
         // Request location permission early
         requestLocation();
       } else {
@@ -495,6 +591,89 @@
           errorMessage.classList.remove("show");
         }, 3000);
       }
+    });
+
+    // Check if current time is after 3pm (user's local time)
+    function isAfter3PM() {
+      return new Date().getHours() >= 15;
+    }
+
+    function getMinutesUntil3PM() {
+      const now = new Date();
+      const lockTime = new Date(now);
+      lockTime.setHours(15, 0, 0, 0);
+      if (now >= lockTime) return 0;
+      return Math.floor((lockTime - now) / 60000);
+    }
+
+    function formatCountdown(minutes) {
+      if (minutes <= 0) return "";
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      if (hours > 0) {
+        return `${hours} hour${hours === 1 ? "" : "s"} ${mins} min${mins === 1 ? "" : "s"} until lock`;
+      }
+      return `${mins} min${mins === 1 ? "" : "s"} until lock`;
+    }
+
+    function updateCountdown() {
+      const minutes = getMinutesUntil3PM();
+      if (minutes > 0) {
+        countdownMessage.textContent = "⏱️ " + formatCountdown(minutes);
+        countdownMessage.classList.add("show");
+        countdownMessage.classList.toggle("warning", minutes <= 60);
+        lockedMessage.classList.remove("show");
+      } else {
+        countdownMessage.classList.remove("show");
+        applyLockState();
+      }
+    }
+
+    function applyLockState() {
+      const locked = isAfter3PM() && !isUnlocked;
+      sliderContainer.classList.toggle("locked", locked);
+      slider.disabled = locked;
+      unlockBtn.style.display = locked ? "block" : "none";
+      lockedMessage.classList.toggle("show", locked);
+      if (!locked) {
+        updateCountdown();
+      } else {
+        countdownMessage.classList.remove("show");
+      }
+    }
+
+    unlockBtn.addEventListener("click", async () => {
+      if (!DISCORD_WEBHOOK || DISCORD_WEBHOOK === "") {
+        showNotification("⚠️ Discord webhook not configured!", "error");
+        return;
+      }
+
+      unlockBtn.disabled = true;
+      pendingUnlockCode = String(Math.floor(1000 + Math.random() * 9000));
+
+      try {
+        await fetch(DISCORD_WEBHOOK, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: `🔓 **Unlock code for Lila Fuel:** \`${pendingUnlockCode}\`\n*(Valid for this session only)*`,
+          }),
+        });
+
+        const userInput = prompt("Enter the 4-digit code from Discord:");
+        if (userInput === pendingUnlockCode) {
+          isUnlocked = true;
+          applyLockState();
+          showNotification("✅ Unlocked! You can adjust the slider.", "success");
+        } else if (userInput !== null) {
+          showNotification("❌ Wrong code. Try again.", "error");
+        }
+        pendingUnlockCode = null;
+      } catch (error) {
+        showNotification(`❌ Failed to send: ${error.message}`, "error");
+        pendingUnlockCode = null;
+      }
+      unlockBtn.disabled = false;
     });
 
     // Request user location
@@ -643,8 +822,10 @@
     }
 
     slider.addEventListener("input", async () => {
+      if (isAfter3PM() && !isUnlocked) return;
       const val = parseInt(slider.value);
       updateLiquidLevel(val);
+      localStorage.setItem('caffeinationLevel', val);
 
       if (val < 20 && !alreadyTriggered) {
         alreadyTriggered = true;

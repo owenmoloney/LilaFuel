@@ -119,6 +119,31 @@ const message = 'Your custom message here!';
 
 For personal use, having the webhook visible is usually fine since you can regenerate it anytime in Discord.
 
+## 🔥 Firebase (Optional)
+
+The app can use Firebase Firestore to sync the caffeination level across devices.
+
+### Setup
+
+1. **Create a Web App** in [Firebase Console](https://console.firebase.google.com/) (project: LilaFuel / lilafuel)
+2. Go to **Project Settings** → **Your apps** → **Add app** (Web)
+3. Copy the `firebaseConfig` object
+4. Copy `firebase.config.example.js` to `firebase.config.js` and paste your config (replace `YOUR_API_KEY` and `YOUR_APP_ID`)
+5. **Enable Firestore**: Firebase Console → Build → Firestore Database → Create database
+6. **Set Firestore rules** (for testing):
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /caffeination/{document=**} {
+         allow read, write: if true;
+       }
+     }
+   }
+   ```
+
+When configured, the caffeination level is saved to Firestore and synced across devices. Without Firebase, it falls back to localStorage.
+
 ## 📋 Tech Stack
 
 | Component            | Tool             | Cost |
@@ -127,6 +152,7 @@ For personal use, having the webhook visible is usually fine since you can regen
 | Button trigger logic | JavaScript       | Free |
 | Notification system  | Discord Webhooks | Free |
 | Phone delivery       | Discord App      | Free |
+| Level sync (optional)| Firebase Firestore | Free |
 
 ## 🐛 Troubleshooting
 

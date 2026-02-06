@@ -1,6 +1,9 @@
 # Discord webhook configuration (contains sensitive data)
 config.js
 
+# Firebase configuration (contains apiKey)
+firebase.config.js
+
 # OS files
 .DS_Store
 Thumbs.db
